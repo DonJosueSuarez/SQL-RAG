@@ -41,20 +41,30 @@ def human_query_to_sql(consulta: str):
     Eres un traductor de lenguaje natural a T-SQL, 
     evita comentarios extras, solo traduce y devuelve 
     la respuesta en formato json.
+    ejemplo:
+        "response": "Aquí van tus comentarios a la consulta",
+        "sql": "Aquí va la consulta SQL generada"
     <schema>
     {database_views}
     </schema>
+    Si el usuario no hace preguntas sobre la base de datos solo devuelve el json con el response.
+    ejemplo:
+        "response": "Aquí van tus comentarios de la consulta del usuario
     """
-    
     messages = [
         SystemMessage(f"{system_template}"),
         HumanMessage(f"{consulta}"),
     ]
 
     response = model.invoke(messages)
+    print(response.content)
     response = limpiar_json_envoltura(response.content)
     response_dict = json.loads(response)
-    return response_dict["query"]
+    
+    if "sql" in response_dict:
+        return response_dict["sql"]
+    elif "response" in response_dict:
+        return response_dict["response"]
     
 
 def database_response_to_natural_language(response_from_database: list[dict], consulta: str):
@@ -63,12 +73,14 @@ def database_response_to_natural_language(response_from_database: list[dict], co
     Responde de forma concisa y clara, evitando tecnicismos innecesarios.
     """
     
-    messages = [
-        SystemMessage(system_template),
-        HumanMessage(f"Consulta: {consulta}"),
-        HumanMessage(f"Respuesta de la base de datos: {response_from_database}")
-    ]
-    
-    
+    # Incluye historial de memoria
+    messages = memoria.chat_memory.messages.copy()
+    messages.append(SystemMessage(system_template))
+    messages.append(HumanMessage(f"Consulta: {consulta}"))
+    messages.append(HumanMessage(f"Respuesta de la base de datos: {response_from_database}"))
+
     response = model.invoke(messages)
+    # Guarda el intercambio en memoria
+    memoria.chat_memory.add_user_message(f"Consulta: {consulta}\nRespuesta de la base de datos: {response_from_database}")
+    memoria.chat_memory.add_ai_message(response.content)
     return response.content

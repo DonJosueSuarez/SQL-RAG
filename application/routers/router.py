@@ -12,6 +12,9 @@ router = APIRouter()
 async def execute_query_endpoint(request: QueryRequest):
     consulta = request.query
     sql = human_query_to_sql(consulta)
-    respuesta_db = execute_query(sql)
-    respuesta_gemini = database_response_to_natural_language(respuesta_db, consulta)
-    return respuesta_gemini
+    try:
+        respuesta_db = execute_query(sql)
+        respuesta_gemini = database_response_to_natural_language(respuesta_db, consulta)
+        return respuesta_gemini
+    except Exception as e:
+        return sql
