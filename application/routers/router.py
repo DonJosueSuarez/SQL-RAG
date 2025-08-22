@@ -9,12 +9,13 @@ class QueryRequest(BaseModel):
 router = APIRouter()
 
 @router.post("/execute-query")
-async def execute_query_endpoint(request: QueryRequest):
+async def execute_query_endpoint(request: QueryRequest) -> dict[str, str]:
+    print("Received request:", request)
     consulta = request.query
     sql = human_query_to_sql(consulta)
     try:
         respuesta_db = execute_query(sql)
         respuesta_gemini = database_response_to_natural_language(respuesta_db, consulta)
-        return respuesta_gemini
-    except Exception as e:
-        return sql
+        return {"response": respuesta_gemini}
+    except:
+        return {"response": sql}

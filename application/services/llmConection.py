@@ -9,10 +9,10 @@ personalidad = """
 Eres un asistente llamado: Bot Triple A, que atenderá consultas de los usuarios relacionadas
 con datos empresariales de una base de datos SQL Sever, tienes el siguiente flujo de trabajo:
 1. Recibes una consulta en lenguaje natural.
-2. Traducirás la consulta a una consulta SQL válida, usando las vistas y columnas disponibles en la base de datos.
-3. Ejecutarás la consulta SQL en la base de datos.
-4. Recibirás los resultados de la consulta SQL.
-5. Convertirás los resultados de la consulta SQL en una respuesta en lenguaje natural, clara y concisa.
+2. Traducirás la consulta a una consulta tipo T-SQL válida, usando las vistas y columnas disponibles en la base de datos.
+3. Ejecutarás la consulta T-SQL en la base de datos.
+4. Recibirás los resultados de la consulta T-SQL.
+5. Convertirás los resultados de la consulta T-SQL en una respuesta en lenguaje natural, clara y concisa.
 6. Responderás al usuario con la respuesta en lenguaje natural.
 
 Usa emojis al responder, para hacer la conversación más amigable.
@@ -37,34 +37,43 @@ def limpiar_json_envoltura(texto: str) -> str:
     return texto
 
 def human_query_to_sql(consulta: str):
-    system_template = f"""
-    Eres un traductor de lenguaje natural a T-SQL, 
-    evita comentarios extras, solo traduce y devuelve 
-    la respuesta en formato json.
-    ejemplo:
-        "response": "Aquí van tus comentarios a la consulta",
-        "sql": "Aquí va la consulta SQL generada"
-    <schema>
-    {database_views}
-    </schema>
-    Si el usuario no hace preguntas sobre la base de datos solo devuelve el json con el response.
-    ejemplo:
-        "response": "Aquí van tus comentarios de la consulta del usuario
-    """
-    messages = [
-        SystemMessage(f"{system_template}"),
-        HumanMessage(f"{consulta}"),
-    ]
+
+    # Solo agrega el system_template si la memoria está "vacía" (solo la personalidad)
+    if len(memoria.chat_memory.messages) == 1:
+        system_template = f"""
+        Eres un traductor de lenguaje natural a T-SQL, 
+        evita comentarios extras, solo traduce y devuelve 
+        la respuesta en formato json.
+        ejemplo:
+            "sql": "Aquí va la consulta T-SQL generada"
+        <schema>
+        {database_views}
+        </schema>
+        Si el usuario no hace preguntas sobre la base de datos solo devuelve el json con el response.
+        ejemplo:
+            "response": "Aquí van tus comentarios de la consulta del usuario
+        """
+        memoria.chat_memory.add_ai_message(system_template)
+
+    # Incluye historial de memoria
+    messages = memoria.chat_memory.messages.copy()
+    messages.append(HumanMessage(f"{consulta}"))
 
     response = model.invoke(messages)
+    respuesta = response.content
     print(response.content)
-    response = limpiar_json_envoltura(response.content)
-    response_dict = json.loads(response)
-    
-    if "sql" in response_dict:
-        return response_dict["sql"]
-    elif "response" in response_dict:
-        return response_dict["response"]
+    # Guarda el intercambio en memoria
+    memoria.chat_memory.add_user_message(consulta)
+    memoria.chat_memory.add_ai_message(response.content)
+    try:
+        response = limpiar_json_envoltura(response.content)
+        response_dict = json.loads(response)
+        if "sql" in response_dict:
+            return response_dict["sql"]
+        elif "response" in response_dict:
+            return response_dict["response"]
+    except:
+        return respuesta
     
 
 def database_response_to_natural_language(response_from_database: list[dict], consulta: str):
