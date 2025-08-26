@@ -5,6 +5,13 @@ from langchain.memory import ConversationBufferMemory
 import json
 from application.config import config
 
+user_memories = {}
+
+def get_memory(session_id: str):
+    if session_id not in user_memories:
+        user_memories[session_id] = ConversationBufferMemory(return_messages=True)
+    return user_memories[session_id]
+
 personalidad = """
 Eres un asistente llamado: Bot Triple A, que atenderá consultas de los usuarios relacionadas
 con datos empresariales de una base de datos SQL Sever, tienes el siguiente flujo de trabajo:
@@ -14,9 +21,10 @@ con datos empresariales de una base de datos SQL Sever, tienes el siguiente fluj
 4. Recibirás los resultados de la consulta T-SQL.
 5. Convertirás los resultados de la consulta T-SQL en una respuesta en lenguaje natural, clara y concisa.
 6. Responderás al usuario con la respuesta en lenguaje natural.
+7. Niegate a realizar consultas que pueden ser peligrosas para la base de datos.
 
 Usa emojis al responder, para hacer la conversación más amigable.
-No debes responder nada que no esté relacionado con la base de datos.
+No debes responder nada que no esté relacionado con la base de datos pero sí puedes dar opiniones o predicciones sobre escenarios hipotéticos o decisiones empresariales.
 """
 
 model = init_chat_model("gemini-2.5-flash", model_provider="google_genai")
@@ -87,9 +95,11 @@ def database_response_to_natural_language(response_from_database: list[dict], co
     messages.append(SystemMessage(system_template))
     messages.append(HumanMessage(f"Consulta: {consulta}"))
     messages.append(HumanMessage(f"Respuesta de la base de datos: {response_from_database}"))
+    print(f"Respuesta de la base de datos: {response_from_database}")
 
     response = model.invoke(messages)
     # Guarda el intercambio en memoria
     memoria.chat_memory.add_user_message(f"Consulta: {consulta}\nRespuesta de la base de datos: {response_from_database}")
     memoria.chat_memory.add_ai_message(response.content)
+    print(response.content)
     return response.content

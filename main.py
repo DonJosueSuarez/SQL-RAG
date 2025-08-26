@@ -22,6 +22,7 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 @app.get("/")
 def read_root():
     return FileResponse("static/index.html")
+    # return {"message": "BienvenidO a SQL-RAG"}
 
 app.include_router(router, prefix="/api")
 

@@ -6,7 +6,7 @@ engine = create_engine(config.SQL_SERVER_URL)
 
 def get_views():
     inspector = inspect(engine)
-    view_names = inspector.get_table_names()
+    view_names = inspector.get_view_names()
     #print("Views in the database:", view_names)
     return {view: get_columns_and_types(view) for view in view_names}
 
