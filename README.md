@@ -1,5 +1,4 @@
 # Chatbot para consulta a base de Datos
-![alt text](image.png)
 Este proyecto usa el gestor de paquetes **uv**
 
 ## Instalación **uv**
